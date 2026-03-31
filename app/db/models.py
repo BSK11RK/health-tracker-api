@@ -1,6 +1,8 @@
 # DBモデル
-from sqlalchemy import Column, Integer, Float, DateTime, String
+from sqlalchemy import Column, Integer, Float, DateTime, String, ForeignKey
+from sqlalchemy.orm import relationship
 from datetime import datetime
+
 from app.db.database import Base
 
 
@@ -19,4 +21,6 @@ class HealthRecord(Base):
     height = Column(Float)
     weight = Column(Float)
     bmi = Column(Float)
+    user_id = Column(Integer, ForeignKey("users.id"))
     created_at = Column(DateTime, default=datetime.utcnow)
+    user = relationship("User")

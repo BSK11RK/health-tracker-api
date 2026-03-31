@@ -2,15 +2,19 @@
 from fastapi import FastAPI, Depends
 from fastapi.responses import StreamingResponse
 from fastapi.security import OAuth2PasswordRequestForm
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
+
 from app.db.database import SessionLocal, engine, Base
 from app.db import models
 from app.schemas import HealthCreate, UserCreate, UserLogin
-from app.services.analysis import calculate_bmi, calculate_stats, calculate_trend, generate_weight_graph, generate_bmi_bar_chart
+from app.services.analysis import calculate_bmi, calculate_stats, calculate_trend, generate_weight_graph, generate_bmi_bar_chart, save_weight_graph
 from app.services.auth import hash_password, verify_password, create_access_token, get_current_user
 
 
 app = FastAPI()
+
+app.mount("/graphs", StaticFiles(directory="graphs"), name="graphs")
 
 # テーブル作成
 Base.metadata.create_all(bind=engine)
@@ -58,23 +62,25 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
         
 # データ登録
 @app.post("/records")
-def create_record(data: HealthCreate, db: Session = Depends(get_db)):
+def create_record(
+    data: HealthCreate, 
+    db: Session = Depends(get_db),
+    user = Depends(get_current_user)
+):
     bmi = calculate_bmi(data.height, data.weight)
     
     record = models.HealthRecord(
         height=data.height,
         weight=data.weight,
-        bmi=bmi
+        bmi=bmi,
+        user_id=user.id
     )
     
     db.add(record)
     db.commit()
     db.refresh(record)
     
-    return {
-        "id": record.id,
-        "bmi": round(bmi, 2)
-    }
+    return {"bmi": round(bmi, 2)}
     
     
 # 一覧取得
@@ -83,7 +89,43 @@ def get_records(
     db: Session = Depends(get_db),
     user: str = Depends(get_current_user)
 ):
-    return db.query(models.HealthRecord).all()
+    records = db.query(models.HealthRecord) \
+        .filter(models.HealthRecord.user_id == user.id).all()
+        
+    return records
+
+
+# 削除機能
+@app.delete("/records/{record_id}")
+def deleye_record(record_id: int, db: Session = Depends(get_db), user = Depends(get_current_user)):
+    record = db.query(models.HealthRecord) \
+        .filter(models.HealthRecord.id == record_id) \
+        .filter(models.HealthRecord.user_id == user.id).first()
+        
+    if not record:
+        return {"error": "見つかりません"}
+    
+    db.delete(record)
+    db.commit()
+    return {"message": "削除完了"}
+
+
+# 更新機能
+@app.put("/records/{record_id}")
+def update_record(record_id: int, data: HealthCreate, db: Session = Depends(get_db), user = Depends(get_current_user)):
+    record = db.query(models.HealthRecord) \
+        .filter(models.HealthRecord.id == record_id) \
+        .filter(models.HealthRecord.user_id == user.id).first()
+        
+    if not record:
+        return {"error": "見つかりません"}
+    
+    record.height = data.height
+    record.weight = data.weight
+    record.bmi = calculate_bmi(data.height, data.weight)
+    
+    db.commit()
+    return {"message": "更新完了"}
 
 
 # 統計情報
@@ -114,3 +156,14 @@ def bmi_graph(db: Session = Depends(get_db)):
     records = db.query(models.HealthRecord).all()
     buf = generate_bmi_bar_chart(records)
     return StreamingResponse(buf, media_type="image/png")
+
+
+# グラフ保存
+@app.get("/graph/save")
+def save_graph(db: Session = Depends(get_db), user = Depends(get_current_user)):
+    records = db.query(models.HealthRecord) \
+        .filter(models.HealthRecord.user_id == user.id).all()
+        
+    path = save_weight_graph(records, user.id)
+    
+    return {"file_path": path, "url": f"http://localhost:8000/{path}"}

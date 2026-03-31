@@ -1,8 +1,12 @@
 # 分析ロジック
 import pandas as pd
 import matplotlib.pyplot as plt
-import io
+import io, os
+from datetime import datetime
 
+
+GRAPH_DIR = "graphs"
+os.makedirs(GRAPH_DIR, exist_ok=True)
 
 def calculate_bmi(height: float, weight: float):
     height_m = height / 100
@@ -109,3 +113,28 @@ def generate_bmi_bar_chart(records):
     
     buf.seek(0)
     return buf
+
+
+def save_weight_graph(records, user_id: int):
+    if len(records) == 0:
+        return None
+    
+    records = sorted(records, key=lambda x: x.created_at)
+    
+    dates = [r.created_at for r in records]
+    weights = [r.weight for r in records]
+    
+    plt.figure()
+    plt.plot(dates, weights, marker="o")
+    
+    plt.xlabel("Date")
+    plt.ylabel("Weight")
+    plt.title("Weight Trend")
+    
+    # ファイル名
+    filename = f"weight_user_{user_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
+    file_path = f"{GRAPH_DIR}/{filename}"
+    
+    plt.savefig(file_path)
+    plt.close()
+    return file_path
