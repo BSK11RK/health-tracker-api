@@ -36,14 +36,34 @@ JWT認証を用いてユーザーごとにデータを分離しています。
 
 ## ディレクトリ構成
 
-.
+```
+health-tracker-api
 ├── app/
-├── data/        # DBファイル
-├── graphs/      # グラフ画像
-├── sample_data.csv
-├── Dockerfile
-├── docker-compose.yml
-└── README.md
+│   ├── main.py           # FastAPIのエントリーポイント
+│   ├── schemas.py        # Pydanticスキーマ
+|   ├── generate_data.py  # サンプルデータ作成
+│   ├── services/
+│   │   ├── analysis.py   # 分析・グラフ処理
+│   │   └── auth.py       # JWT認証処理
+│   └── db/
+│       ├── models.py     # DBモデル
+│       └── database.py   # DB接続設定
+│
+├── data/
+|   ├── sample_data.csv   # サンプルデータ
+│   └── health.db         # SQLiteデータベース
+|        
+│
+├── graphs/
+│   └── *.png             # グラフ画像
+│       
+├── requirements.txt      # グラフ画像
+├── Dockerfile            # Docker設定
+├── docker-compose.yml    # コンテナ構成
+├── .env                  # 環境変数
+├── .gitignore            # 環境変数
+└── README.md             
+```
 
 ---
 
