@@ -21,6 +21,10 @@ class HealthRecord(Base):
     height = Column(Float)
     weight = Column(Float)
     bmi = Column(Float)
+    
+    age = Column(Integer)
+    gender = Column(String)
+    
     user_id = Column(Integer, ForeignKey("users.id"))
     created_at = Column(DateTime, default=datetime.utcnow)
     user = relationship("User")

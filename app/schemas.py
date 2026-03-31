@@ -29,6 +29,8 @@ class UserLogin(BaseModel):
 class HealthCreate(BaseModel):
     height: float
     weight: float
+    age: int
+    gender: str
 
 
     @field_validator("height")
@@ -46,4 +48,18 @@ class HealthCreate(BaseModel):
             raise ValueError("体重は0より大きい値にしてください")
         if v > 500:
             raise ValueError("体重が不正です")
+        return v
+    
+
+    @field_validator("age")
+    def validate_age(cls, v):
+        if v < 0 or v > 120:
+            raise ValueError("年齢が不正です")
+        return v
+    
+    
+    @field_validator("gender")
+    def validata_gender(cls, v):
+        if v not in ["male", "female"]:
+            raise ValueError("male or femaleで入力してください")
         return v

@@ -4,6 +4,7 @@ from fastapi.responses import StreamingResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
+import csv
 
 from app.db.database import SessionLocal, engine, Base
 from app.db import models
@@ -73,6 +74,8 @@ def create_record(
         height=data.height,
         weight=data.weight,
         bmi=bmi,
+        age=data.age,
+        gender=data.gender,
         user_id=user.id
     )
     
@@ -126,6 +129,29 @@ def update_record(record_id: int, data: HealthCreate, db: Session = Depends(get_
     
     db.commit()
     return {"message": "更新完了"}
+
+
+# CSV読み込みAPI
+@app.post("/import")
+def import_data(db: Session = Depends(get_db), user = Depends(get_current_user)):
+    with open("data/sample_data.csv", newline="") as f:
+        reader = csv.DictReader(f)
+        
+        for row in reader:
+            bmi = calculate_bmi(float(row["height"]), float(row["weight"]))
+            
+            record = models.HealthRecord(
+                height=float(row["height"]),
+                weight=float(row["weight"]),
+                bmi=bmi,
+                age=int(row["age"]),
+                gender=row["gender"],
+                user_id=user.id
+            )
+            
+            db.add(record)
+        db.commit()
+    return {"message": "データ登録完了"}
 
 
 # 統計情報
