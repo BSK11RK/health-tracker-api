@@ -31,7 +31,7 @@ def get_db():
         
         
 # ユーザー登録
-@app.post("/register")
+@app.post("/register", tags=["Auth"])
 def register(user: UserCreate, db: Session = Depends(get_db)):
     hashed_pw = hash_password(user.password)
     
@@ -46,7 +46,7 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
 
 
 # ログイン
-@app.post("/login")
+@app.post("/login", tags=["Auth"])
 def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     db_user = db.query(models.User).filter(models.User.username == form_data.username).first()
     
@@ -60,9 +60,21 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
     
     return {"access_token": token}
         
+
+# データ一覧取得
+@app.get("/records", tags=["Records"])
+def get_records(
+    db: Session = Depends(get_db),
+    user: str = Depends(get_current_user)
+):
+    records = db.query(models.HealthRecord) \
+        .filter(models.HealthRecord.user_id == user.id).all()
         
+    return records
+
+   
 # データ登録
-@app.post("/records")
+@app.post("/records", tags=["Records"])
 def create_record(
     data: HealthCreate, 
     db: Session = Depends(get_db),
@@ -84,37 +96,10 @@ def create_record(
     db.refresh(record)
     
     return {"bmi": round(bmi, 2)}
-    
-    
-# 一覧取得
-@app.get("/records")
-def get_records(
-    db: Session = Depends(get_db),
-    user: str = Depends(get_current_user)
-):
-    records = db.query(models.HealthRecord) \
-        .filter(models.HealthRecord.user_id == user.id).all()
-        
-    return records
-
-
-# 削除機能
-@app.delete("/records/{record_id}")
-def deleye_record(record_id: int, db: Session = Depends(get_db), user = Depends(get_current_user)):
-    record = db.query(models.HealthRecord) \
-        .filter(models.HealthRecord.id == record_id) \
-        .filter(models.HealthRecord.user_id == user.id).first()
-        
-    if not record:
-        return {"error": "見つかりません"}
-    
-    db.delete(record)
-    db.commit()
-    return {"message": "削除完了"}
 
 
 # 更新機能
-@app.put("/records/{record_id}")
+@app.put("/records/{record_id}", tags=["Records"])
 def update_record(record_id: int, data: HealthCreate, db: Session = Depends(get_db), user = Depends(get_current_user)):
     record = db.query(models.HealthRecord) \
         .filter(models.HealthRecord.id == record_id) \
@@ -131,8 +116,23 @@ def update_record(record_id: int, data: HealthCreate, db: Session = Depends(get_
     return {"message": "更新完了"}
 
 
+# 削除機能
+@app.delete("/records/{record_id}", tags=["Records"])
+def deleye_record(record_id: int, db: Session = Depends(get_db), user = Depends(get_current_user)):
+    record = db.query(models.HealthRecord) \
+        .filter(models.HealthRecord.id == record_id) \
+        .filter(models.HealthRecord.user_id == user.id).first()
+        
+    if not record:
+        return {"error": "見つかりません"}
+    
+    db.delete(record)
+    db.commit()
+    return {"message": "削除完了"}
+
+
 # CSV読み込みAPI
-@app.post("/import")
+@app.post("/import", tags=["Import"])
 def import_data(db: Session = Depends(get_db), user = Depends(get_current_user)):
     with open("data/sample_data.csv", newline="") as f:
         reader = csv.DictReader(f)
@@ -155,21 +155,21 @@ def import_data(db: Session = Depends(get_db), user = Depends(get_current_user))
 
 
 # 統計情報
-@app.get("/stats")
+@app.get("/stats", tags=["Analytics"])
 def get_stats(db: Session = Depends(get_db)):
     records = db.query(models.HealthRecord).all()
     return  calculate_stats(records)
 
 
 # トレンド
-@app.get("/trend")
+@app.get("/trend", tags=["Analytics"])
 def get_trend(db: Session = Depends(get_db)):
     records = db.query(models.HealthRecord).all()
     return calculate_trend(records)
 
 
 # 折れ線＋点グラフ
-@app.get("/graph/weight")
+@app.get("/graph/weight",tags=["Graph"])
 def weight_graph(db: Session = Depends(get_db)):
     records = db.query(models.HealthRecord).all()
     buf = generate_weight_graph(records)
@@ -177,7 +177,7 @@ def weight_graph(db: Session = Depends(get_db)):
 
 
 # 棒グラフ
-@app.get("/graph/bmi")
+@app.get("/graph/bmi", tags=["Graph"])
 def bmi_graph(db: Session = Depends(get_db)):
     records = db.query(models.HealthRecord).all()
     buf = generate_bmi_bar_chart(records)
@@ -185,7 +185,7 @@ def bmi_graph(db: Session = Depends(get_db)):
 
 
 # グラフ保存
-@app.get("/graph/save")
+@app.get("/graph/save", tags=["Graph"])
 def save_graph(db: Session = Depends(get_db), user = Depends(get_current_user)):
     records = db.query(models.HealthRecord) \
         .filter(models.HealthRecord.user_id == user.id).all()
